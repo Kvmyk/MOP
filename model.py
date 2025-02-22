@@ -74,13 +74,12 @@ criterion = nn.BCELoss()  # Binary Cross Entropy dla klasyfikacji binarnej
 optimizer = optim.Adam(model.parameters(), lr=0.01)
 epochs = 12
 
-# Trening modelu
 for epoch in range(epochs): 
     total_loss = 0
     for texts, labels in dataloader:
         optimizer.zero_grad()
-        outputs = model(texts).squeeze()
-        loss = criterion(outputs, labels)
+        outputs = model(texts).squeeze(dim=1)  # Upewniamy się, że kształt pasuje
+        loss = criterion(outputs, labels)  # Teraz kształty są zgodne
         loss.backward()
         optimizer.step()
         total_loss += loss.item()
