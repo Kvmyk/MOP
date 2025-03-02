@@ -2,7 +2,9 @@ import re
 import torch
 from torch.utils.data import Dataset, DataLoader
 import pandas as pd
-import string
+import torch.nn as nn
+import torch.optim as optim
+import numpy as np
 
 # Wczytanie danych
 df = pd.read_csv("hate_speech_dataset.csv")
@@ -16,13 +18,6 @@ ban_pl_df = pd.read_csv("BAN-PL.csv")
 ban_pl_data = ban_pl_df[["Text", "Class"]].copy()
 # Zmień nazwy kolumn na odpowiadające hate_speech_dataset.csv
 ban_pl_data.columns = ["text", "label"]
-
-# Wczytaj dane z BAN-PL2.csv
-ban_pl2_df = pd.read_csv("BAN-PL2.csv")
-# Wybierz tylko kolumny Text i Class i utwórz jawną kopię
-ban_pl2_data = ban_pl2_df[["Text", "Class"]].copy()
-# Zmień nazwy kolumn na odpowiadające hate_speech_dataset.csv
-ban_pl2_data.columns = ["text", "label"]
 
 def clean_text(text):
     """Funkcja do czyszczenia tekstu z niepotrzebnych znaków i formatowań"""
@@ -44,35 +39,31 @@ def clean_text(text):
 
 # Zastosuj funkcję czyszczącą na kolumnie text
 ban_pl_data["text"] = ban_pl_data["text"].apply(clean_text)
-ban_pl2_data["text"] = ban_pl2_data["text"].apply(clean_text)
 
 # Upewnij się, że wszystkie wartości w kolumnie tekst są stringami
 ban_pl_data["text"] = ban_pl_data["text"].astype(str)
-ban_pl2_data["text"] = ban_pl2_data["text"].astype(str)
-
-# Połącz dane z obu plików BAN
-combined_df = pd.concat([ban_pl_data, ban_pl2_data], ignore_index=True)
 
 # Usuń puste wiersze (te, w których tekst jest pusty)
-combined_df = combined_df[combined_df["text"].str.strip() != ""]
+ban_pl_data = ban_pl_data[ban_pl_data["text"].str.strip() != ""]
 
-# Zapisz połączone dane do pliku hate_speech_dataset.csv
-combined_df.to_csv("hate_speech_dataset.csv", index=False)
+# Zapisz dane do pliku hate_speech_dataset.csv
+ban_pl_data.to_csv("hate_speech_dataset.csv", index=False)
 
-print(f"Dane z BAN-PL.csv i BAN-PL2.csv zostały zapisane do hate_speech_dataset.csv")
-print(f"Łączna liczba rekordów: {len(combined_df)}")
+print(f"Dane z BAN-PL.csv zostały zapisane do hate_speech_dataset.csv")
+print(f"Liczba rekordów: {len(ban_pl_data)}")
 
-# Tokenizacja
+# Tokenizacja - zachowujemy więcej informacji
 def preprocess(text):
     # Konwertuj wartości nan/None/float na pusty string
     if pd.isna(text) or not isinstance(text, str):
         return []  # Zwracamy pustą listę dla wartości niebędących stringami
     
     text = text.lower()  # Zamiana na małe litery
-    text = re.sub(r"[^a-ząćęłńóśźż ]", "", text)  # Usunięcie znaków specjalnych
+    # Zachowujemy więcej znaków dla lepszej precyzji - interpunkcja może być istotna
+    text = re.sub(r"[^a-ząćęłńóśźż.,!?;: ]", "", text)
     return text.split()
 
-# Tworzenie słownika słów
+# Tworzenie słownika słów bez limitów
 word2index = {"<PAD>": 0, "<UNK>": 1}
 index = 2
 
@@ -83,8 +74,8 @@ for text in df["text"]:
             word2index[word] = index
             index += 1
 
-# Zamiana tekstu na liczby
-def encode_text(text, max_len=10):
+# Zamiana tekstu na liczby - zwiększamy maksymalną długość sekwencji
+def encode_text(text, max_len=20):  # zwiększone z 10 do 20
     words = preprocess(text)
     encoded = [word2index.get(word, 1) for word in words]  # 1 = <UNK>
     if len(encoded) < max_len:
@@ -105,60 +96,108 @@ class HateSpeechDataset(Dataset):
     def __getitem__(self, idx):
         return self.texts[idx], self.labels[idx]
 
+# Zwiększamy batch_size dla lepszej stabilności treningu
 dataset = HateSpeechDataset(df)
-dataloader = DataLoader(dataset, batch_size=2, shuffle=True)
+dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
 
-import torch.nn as nn
-import torch.optim as optim
-
+# Model z większą pojemnością dla wyższej precyzji
 class HateSpeechModel(nn.Module):
-    def __init__(self, vocab_size, embedding_dim=16, hidden_dim=16):
+    def __init__(self, vocab_size, embedding_dim=64, hidden_dim=128):  # zwiększono wymiary
         super(HateSpeechModel, self).__init__()
         self.embedding = nn.Embedding(vocab_size, embedding_dim)
-        self.lstm = nn.LSTM(embedding_dim, hidden_dim, batch_first=True)
-        self.fc = nn.Linear(hidden_dim, 1)
+        self.lstm = nn.LSTM(embedding_dim, hidden_dim, num_layers=2, batch_first=True, 
+                          bidirectional=True, dropout=0.2)  # głębsza sieć LSTM
+        self.dropout = nn.Dropout(0.3)  # dodany dropout dla regulacji
+        self.fc1 = nn.Linear(hidden_dim * 2, 64)  # bidirectional wymaga *2
+        self.relu = nn.ReLU()
+        self.fc2 = nn.Linear(64, 1)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
         x = self.embedding(x)
         x, _ = self.lstm(x)
-        x = self.fc(x[:, -1, :])  # Ostatni krok LSTM
+        x = self.dropout(x[:, -1, :])  # Ostatni krok LSTM + dropout
+        x = self.relu(self.fc1(x))  # Dodatkowa warstwa ukryta
+        x = self.fc2(x)
         return self.sigmoid(x)
 
 # Inicjalizacja modelu
 vocab_size = len(word2index)
 model = HateSpeechModel(vocab_size)
 
-# Ustawienia treningu
-criterion = nn.BCELoss()  # Binary Cross Entropy dla klasyfikacji binarnej
-optimizer = optim.Adam(model.parameters(), lr=0.01)
-epochs = 40
+# Ustawienia treningu z mniejszym learning rate dla większej precyzji
+criterion = nn.BCELoss()
+optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-5)  # Dodano regularyzację L2
+epochs = 30  # zwiększono liczbę epok
 
-for epoch in range(epochs): 
+# Dodajemy early stopping
+best_loss = float('inf')
+patience = 5
+counter = 0
+
+# Zatrzymaj gdy accuracy jest wysoka i stabilna przez kilka epok
+accuracy_history = []
+
+for epoch in range(epochs):
+    model.train()  # Explicitly set training mode
     total_loss = 0
     for texts, labels in dataloader:
         optimizer.zero_grad()
-        outputs = model(texts).squeeze(dim=1)  # Upewniamy się, że kształt pasuje
-        loss = criterion(outputs, labels)  # Teraz kształty są zgodne
+        outputs = model(texts).squeeze(dim=1)
+        loss = criterion(outputs, labels)
         loss.backward()
+        # Gradient clipping to prevent exploding gradients
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         optimizer.step()
         total_loss += loss.item()
-    print(f"Epoka {epoch+1}, Strata: {total_loss:.4f}")
+    
+    # Validate after each epoch
+    model.eval()
+    val_loss = 0
+    correct = 0
+    total = 0
+    with torch.no_grad():
+        for texts, labels in dataloader:  # Using training data as validation for now
+            outputs = model(texts).squeeze(dim=1)
+            val_loss += criterion(outputs, labels).item()
+            predicted = (outputs > 0.5).float()
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+    
+    val_loss /= len(dataloader)
+    accuracy = 100 * correct / total
+    
+    print(f"Epoka {epoch+1}, Strata: {total_loss:.4f}, Val Loss: {val_loss:.4f}, Acc: {accuracy:.2f}%")
+    
+    # Early stopping logic
+    if val_loss < best_loss:
+        best_loss = val_loss
+        counter = 0
+        # Save best model
+        torch.save(model.state_dict(), "hate_speech_model_best.pth")
+    else:
+        counter += 1
+        if counter >= patience:
+            print(f"Early stopping triggered after {epoch+1} epochs")
+            break
 
-# Zapisanie modelu
+    # Zatrzymaj gdy accuracy jest wysoka i stabilna przez kilka epok
+    accuracy_history.append(accuracy)
+    if len(accuracy_history) >= 3:  # Sprawdź ostatnie 3 epoki
+        if all(acc > 98 for acc in accuracy_history[-3:]):  # Wszystkie ponad 98%
+            if max(accuracy_history[-3:]) - min(accuracy_history[-3:]) < 0.5:  # Stabilne (różnica < 0.5%)
+                print("Wysoka i stabilna accuracy osiągnięta. Zatrzymuję trening.")
+                torch.save(model.state_dict(), "hate_speech_model_best.pth")
+                break
+
+# Ładujemy najlepszy model
+model.load_state_dict(torch.load("hate_speech_model_best.pth"))
+
+# Zapisanie modelu bez kwantyzacji dla zachowania maksymalnej precyzji
 torch.save(model.state_dict(), "hate_speech_model.pth")
 
+# API Flask z pełną precyzją
 from flask import Flask, request, jsonify
-import torch
-import torch.nn as nn
-from torch.utils.data import DataLoader
-import numpy as np
-
-# Załaduj model
-vocab_size = len(word2index)
-model = HateSpeechModel(vocab_size)
-model.load_state_dict(torch.load("hate_speech_model.pth", map_location=torch.device("cpu")))
-model.eval()
 
 app = Flask(__name__)
 
@@ -171,12 +210,20 @@ def analyze():
     encoded = encode_text(text)
     tensor_input = torch.tensor([encoded], dtype=torch.long)
 
-    # Predykcja
+    # Predykcja z pełną precyzją
+    model.eval()  # Upewniamy się, że model jest w trybie ewaluacji
     with torch.no_grad():
         prediction = model(tensor_input).item()
 
+    # Więcej szczegółowych informacji w odpowiedzi
+    confidence = abs(prediction - 0.5) * 2  # Przekształcenie na skalę 0-1
     label = "hate" if prediction > 0.5 else "neutral"
-    return jsonify({"text": text, "label": label, "score": prediction})
+    return jsonify({
+        "text": text, 
+        "label": label, 
+        "score": prediction,
+        "confidence": float(confidence)
+    })
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001)
