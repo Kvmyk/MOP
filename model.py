@@ -2,6 +2,7 @@ import re
 import torch
 from torch.utils.data import Dataset, DataLoader
 import pandas as pd
+import string
 
 # Wczytanie danych
 df = pd.read_csv("hate_speech_dataset.csv")
@@ -67,7 +68,11 @@ print(f"Łączna liczba rekordów: {len(combined_df)}")
 
 # Tokenizacja
 def preprocess(text):
-    text = text.lower()
+    # Konwertuj wartości nan/None/float na pusty string
+    if pd.isna(text) or not isinstance(text, str):
+        return []  # Zwracamy pustą listę dla wartości niebędących stringami
+    
+    text = text.lower()  # Zamiana na małe litery
     text = re.sub(r"[^a-ząćęłńóśźż ]", "", text)  # Usunięcie znaków specjalnych
     return text.split()
 
