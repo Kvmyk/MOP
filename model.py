@@ -6,6 +6,53 @@ import pandas as pd
 # Wczytanie danych
 df = pd.read_csv("hate_speech_dataset.csv")
 
+import pandas as pd
+
+# Wczytaj istniejące dane z hate_speech_dataset.csv
+hate_speech_df = pd.read_csv("hate_speech_dataset.csv")
+
+# Wczytaj dane z BAN-PL.csv
+ban_pl_df = pd.read_csv("BAN-PL.csv")
+# Wybierz tylko kolumny Text i Class
+ban_pl_data = ban_pl_df[["Text", "Class"]]
+# Zmień nazwy kolumn na odpowiadające hate_speech_dataset.csv
+ban_pl_data.columns = ["text", "label"]
+
+# Wczytaj dane z BAN-PL2.csv
+ban_pl2_df = pd.read_csv("BAN-PL2.csv")
+# Wybierz tylko kolumny Text i Class
+ban_pl2_data = ban_pl2_df[["Text", "Class"]]
+# Zmień nazwy kolumn na odpowiadające hate_speech_dataset.csv
+ban_pl2_data.columns = ["text", "label"]
+
+def clean_text(text):
+    """Funkcja do czyszczenia tekstu z niepotrzebnych znaków i formatowań"""
+    import re
+    # Usuń wszystkie wzmianki użytkowników (np. {USERNAME})
+    text = re.sub(r"\{USERNAME\}", "", text)
+    # Usuń wzmianki nazwisk (np. [surname])
+    text = re.sub(r"\[surname\]", "", text)
+    # Usuń URL-e
+    text = re.sub(r"\{URL\}", "", text)
+    # Usuń inne specjalne formatowania
+    text = re.sub(r"\[.*?\]", "", text)
+    # Usuń zbędne białe znaki
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+# Zastosuj funkcję czyszczącą na kolumnie text
+ban_pl_data["text"] = ban_pl_data["text"].apply(clean_text)
+ban_pl2_data["text"] = ban_pl2_data["text"].apply(clean_text)
+
+# Połącz wszystkie dane
+combined_df = pd.concat([hate_speech_df, ban_pl_data, ban_pl2_data], ignore_index=True)
+
+# Zapisz połączone dane do oryginalnego pliku
+combined_df.to_csv("hate_speech_dataset.csv", index=False)
+
+print(f"Dodano dane z BAN-PL.csv i BAN-PL2.csv do hate_speech_dataset.csv.")
+print(f"Łączna liczba rekordów: {len(combined_df)}")
+
 # Tokenizacja
 def preprocess(text):
     text = text.lower()
