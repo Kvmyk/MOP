@@ -26,67 +26,20 @@ def clean_text(text):
     text = re.sub(r"\s+", " ", text).strip()
     return text
 
-# Sprawdź czy trzeba wczytać dane - wykonaj tylko raz
-do_data_loading = False  # Zmień na True gdy chcesz załadować dane
-
-if do_data_loading:
-    print("Wczytywanie plików...")
-
-    # Wczytaj istniejące dane z hate_speech_dataset.csv
-    try:
-        hate_speech_df = pd.read_csv("hate_speech_dataset.csv")
-        print(f"Wczytano {len(hate_speech_df)} rekordów z hate_speech_dataset.csv")
-    except FileNotFoundError:
-        # Jeśli plik nie istnieje, utwórz pusty DataFrame
-        hate_speech_df = pd.DataFrame(columns=["text", "label"])
-        print("Utworzono nowy DataFrame dla hate_speech_dataset.csv")
-
-    # Wczytaj dane z BAN-PL2.csv
-    ban_pl2_df = pd.read_csv("BAN-PL2.csv")
-    print(f"Wczytano {len(ban_pl2_df)} rekordów z BAN-PL2.csv")
-
-    # Wybierz tylko kolumny Text i Class i utwórz jawną kopię
-    ban_pl2_data = ban_pl2_df[["Text", "Class"]].copy()
-
-    # Zmień nazwy kolumn na odpowiadające hate_speech_dataset.csv
-    ban_pl2_data.columns = ["text", "label"]
-
-    # Zastosuj funkcję czyszczącą na kolumnie text
-    print("Czyszczenie danych z BAN-PL2.csv...")
-    ban_pl2_data["text"] = ban_pl2_data["text"].apply(clean_text)
-
-    # Upewnij się, że wszystkie wartości w kolumnie tekst są stringami
-    ban_pl2_data["text"] = ban_pl2_data["text"].astype(str)
-
-    # Usuń puste wiersze (te, w których tekst jest pusty)
-    ban_pl2_data = ban_pl2_data[ban_pl2_data["text"].str.strip() != ""]
-    print(f"Po czyszczeniu pozostało {len(ban_pl2_data)} rekordów z BAN-PL2.csv")
-
-    # Połącz dane
-    combined_df = pd.concat([hate_speech_df, ban_pl2_data], ignore_index=True)
-    print(f"Łączna liczba rekordów po połączeniu: {len(combined_df)}")
-
-    # Zapisz połączone dane do pliku hate_speech_dataset.csv
-    combined_df.to_csv("hate_speech_dataset.csv", index=False)
-    print(f"Dane zostały zapisane do hate_speech_dataset.csv")
-    print(f"Dodano {len(ban_pl2_data)} nowych rekordów z BAN-PL2.csv")
-
-# Wczytanie danych dla treningu - wykonaj zawsze
+# Wczytanie danych dla treningu - bez BAN-PL i BAN-PL2
 df = pd.read_csv("hate_speech_dataset.csv")
 print(f"Wczytano {len(df)} rekordów z hate_speech_dataset.csv do treningu.")
 
-# Tokenizacja - zachowujemy więcej informacji
+# Funkcje preprocessingu
 def preprocess(text):
-    # Konwertuj wartości nan/None/float na pusty string
     if pd.isna(text) or not isinstance(text, str):
-        return []  # Zwracamy pustą listę dla wartości niebędących stringami
+        return []
     
-    text = text.lower()  # Zamiana na małe litery
-    # Zachowujemy więcej znaków dla lepszej precyzji - interpunkcja może być istotna
+    text = text.lower()
     text = re.sub(r"[^a-ząćęłńóśźż.,!?;: ]", "", text)
     return text.split()
 
-# Tworzenie słownika słów bez limitów
+# Tworzenie słownika słów
 word2index = {"<PAD>": 0, "<UNK>": 1}
 index = 2
 
@@ -97,10 +50,10 @@ for text in df["text"]:
             word2index[word] = index
             index += 1
 
-# Zamiana tekstu na liczby - zwiększamy maksymalną długość sekwencji
-def encode_text(text, max_len=20):  # zwiększone z 10 do 20
+# Kodowanie tekstu
+def encode_text(text, max_len=20):
     words = preprocess(text)
-    encoded = [word2index.get(word, 1) for word in words]  # 1 = <UNK>
+    encoded = [word2index.get(word, 1) for word in words]
     if len(encoded) < max_len:
         encoded += [0] * (max_len - len(encoded))  # Padding
     return encoded[:max_len]
@@ -119,7 +72,6 @@ class HateSpeechDataset(Dataset):
     def __getitem__(self, idx):
         return self.texts[idx], self.labels[idx]
 
-# Zwiększamy batch_size dla lepszej stabilności treningu
 dataset = HateSpeechDataset(df)
 dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
 
