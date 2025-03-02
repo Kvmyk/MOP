@@ -100,25 +100,20 @@ class HateSpeechDataset(Dataset):
 dataset = HateSpeechDataset(df)
 dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
 
-# Model z większą pojemnością dla wyższej precyzji
+# Model w mniejszej wersji
 class HateSpeechModel(nn.Module):
-    def __init__(self, vocab_size, embedding_dim=64, hidden_dim=128):  # zwiększono wymiary
+    def __init__(self, vocab_size, embedding_dim=16, hidden_dim=16):  # zmniejszono wymiary
         super(HateSpeechModel, self).__init__()
         self.embedding = nn.Embedding(vocab_size, embedding_dim)
-        self.lstm = nn.LSTM(embedding_dim, hidden_dim, num_layers=2, batch_first=True, 
-                          bidirectional=True, dropout=0.2)  # głębsza sieć LSTM
-        self.dropout = nn.Dropout(0.3)  # dodany dropout dla regulacji
-        self.fc1 = nn.Linear(hidden_dim * 2, 64)  # bidirectional wymaga *2
-        self.relu = nn.ReLU()
-        self.fc2 = nn.Linear(64, 1)
+        self.lstm = nn.LSTM(embedding_dim, hidden_dim, batch_first=True)  # usunięto bidirectional i zmniejszono złożoność
+        self.fc = nn.Linear(hidden_dim, 1)  # usunięto dodatkową warstwę
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
         x = self.embedding(x)
         x, _ = self.lstm(x)
-        x = self.dropout(x[:, -1, :])  # Ostatni krok LSTM + dropout
-        x = self.relu(self.fc1(x))  # Dodatkowa warstwa ukryta
-        x = self.fc2(x)
+        x = x[:, -1, :]  # Ostatni krok LSTM
+        x = self.fc(x)
         return self.sigmoid(x)
 
 # Inicjalizacja modelu
