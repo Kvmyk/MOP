@@ -51,7 +51,7 @@ Aby skorzystać z API, wyślij żądanie **POST** na endpoint `/analyze` z treś
 **Odpowiedź zawiera**:
 - `text` – Analizowany tekst.
 - `label` – Etykieta klasyfikacji (`hate` lub `neutral`).
-- `score` – Wynik predykcji modelu.
+- `score` – Wynik predykcji modelu od 0 do 1.
 - `confidence` – Pewność predykcji na skali od 0 do 1.
 
 ## 📝 Przykład użycia
