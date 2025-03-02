@@ -132,7 +132,7 @@ model = HateSpeechModel(vocab_size)
 # Ustawienia treningu
 criterion = nn.BCELoss()  # Binary Cross Entropy dla klasyfikacji binarnej
 optimizer = optim.Adam(model.parameters(), lr=0.01)
-epochs = 12
+epochs = 40
 
 for epoch in range(epochs): 
     total_loss = 0
