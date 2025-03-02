@@ -5,20 +5,9 @@ import pandas as pd
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
+from flask import Flask, request, jsonify
 
-# Wczytanie danych
-df = pd.read_csv("hate_speech_dataset.csv")
-
-import pandas as pd
-import re
-
-# Wczytaj dane z BAN-PL.csv
-ban_pl_df = pd.read_csv("BAN-PL.csv")
-# Wybierz tylko kolumny Text i Class i utwórz jawną kopię
-ban_pl_data = ban_pl_df[["Text", "Class"]].copy()
-# Zmień nazwy kolumn na odpowiadające hate_speech_dataset.csv
-ban_pl_data.columns = ["text", "label"]
-
+# Funkcja do czyszczenia tekstu
 def clean_text(text):
     """Funkcja do czyszczenia tekstu z niepotrzebnych znaków i formatowań"""
     # Konwertuj wartości nan/None/float na pusty string
@@ -37,20 +26,54 @@ def clean_text(text):
     text = re.sub(r"\s+", " ", text).strip()
     return text
 
-# Zastosuj funkcję czyszczącą na kolumnie text
-ban_pl_data["text"] = ban_pl_data["text"].apply(clean_text)
+# Sprawdź czy trzeba wczytać dane - wykonaj tylko raz
+do_data_loading = False  # Zmień na True gdy chcesz załadować dane
 
-# Upewnij się, że wszystkie wartości w kolumnie tekst są stringami
-ban_pl_data["text"] = ban_pl_data["text"].astype(str)
+if do_data_loading:
+    print("Wczytywanie plików...")
 
-# Usuń puste wiersze (te, w których tekst jest pusty)
-ban_pl_data = ban_pl_data[ban_pl_data["text"].str.strip() != ""]
+    # Wczytaj istniejące dane z hate_speech_dataset.csv
+    try:
+        hate_speech_df = pd.read_csv("hate_speech_dataset.csv")
+        print(f"Wczytano {len(hate_speech_df)} rekordów z hate_speech_dataset.csv")
+    except FileNotFoundError:
+        # Jeśli plik nie istnieje, utwórz pusty DataFrame
+        hate_speech_df = pd.DataFrame(columns=["text", "label"])
+        print("Utworzono nowy DataFrame dla hate_speech_dataset.csv")
 
-# Zapisz dane do pliku hate_speech_dataset.csv
-ban_pl_data.to_csv("hate_speech_dataset.csv", index=False)
+    # Wczytaj dane z BAN-PL2.csv
+    ban_pl2_df = pd.read_csv("BAN-PL2.csv")
+    print(f"Wczytano {len(ban_pl2_df)} rekordów z BAN-PL2.csv")
 
-print(f"Dane z BAN-PL.csv zostały zapisane do hate_speech_dataset.csv")
-print(f"Liczba rekordów: {len(ban_pl_data)}")
+    # Wybierz tylko kolumny Text i Class i utwórz jawną kopię
+    ban_pl2_data = ban_pl2_df[["Text", "Class"]].copy()
+
+    # Zmień nazwy kolumn na odpowiadające hate_speech_dataset.csv
+    ban_pl2_data.columns = ["text", "label"]
+
+    # Zastosuj funkcję czyszczącą na kolumnie text
+    print("Czyszczenie danych z BAN-PL2.csv...")
+    ban_pl2_data["text"] = ban_pl2_data["text"].apply(clean_text)
+
+    # Upewnij się, że wszystkie wartości w kolumnie tekst są stringami
+    ban_pl2_data["text"] = ban_pl2_data["text"].astype(str)
+
+    # Usuń puste wiersze (te, w których tekst jest pusty)
+    ban_pl2_data = ban_pl2_data[ban_pl2_data["text"].str.strip() != ""]
+    print(f"Po czyszczeniu pozostało {len(ban_pl2_data)} rekordów z BAN-PL2.csv")
+
+    # Połącz dane
+    combined_df = pd.concat([hate_speech_df, ban_pl2_data], ignore_index=True)
+    print(f"Łączna liczba rekordów po połączeniu: {len(combined_df)}")
+
+    # Zapisz połączone dane do pliku hate_speech_dataset.csv
+    combined_df.to_csv("hate_speech_dataset.csv", index=False)
+    print(f"Dane zostały zapisane do hate_speech_dataset.csv")
+    print(f"Dodano {len(ban_pl2_data)} nowych rekordów z BAN-PL2.csv")
+
+# Wczytanie danych dla treningu - wykonaj zawsze
+df = pd.read_csv("hate_speech_dataset.csv")
+print(f"Wczytano {len(df)} rekordów z hate_speech_dataset.csv do treningu.")
 
 # Tokenizacja - zachowujemy więcej informacji
 def preprocess(text):
@@ -102,7 +125,7 @@ dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
 
 # Model w mniejszej wersji
 class HateSpeechModel(nn.Module):
-    def __init__(self, vocab_size, embedding_dim=16, hidden_dim=16):  # zmniejszono wymiary
+    def __init__(self, vocab_size, embedding_dim=32, hidden_dim=32):  # zmniejszono wymiary
         super(HateSpeechModel, self).__init__()
         self.embedding = nn.Embedding(vocab_size, embedding_dim)
         self.lstm = nn.LSTM(embedding_dim, hidden_dim, batch_first=True)  # usunięto bidirectional i zmniejszono złożoność
@@ -192,8 +215,6 @@ model.load_state_dict(torch.load("hate_speech_model_best.pth"))
 torch.save(model.state_dict(), "hate_speech_model.pth")
 
 # API Flask z pełną precyzją
-from flask import Flask, request, jsonify
-
 app = Flask(__name__)
 
 @app.route("/analyze", methods=["POST"])
