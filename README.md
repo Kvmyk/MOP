@@ -10,13 +10,6 @@
 - **Model klasyfikacji**: Implementacja modelu LSTM do klasyfikacji tekstu jako "hate" lub "neutral".
 - **API**: Udostępnienie modelu poprzez interfejs API zbudowany na Flasku, umożliwiający analizę nowych tekstów.
 
-## 📂 Struktura projektu
-
-- `model.py` – Główny plik zawierający implementację modelu oraz funkcje przetwarzania danych.
-- `hate_speech_dataset.csv` – Zbiór danych używany do trenowania modelu.
-- `hate_speech_model.pth` – Zapis wytrenowanego modelu.
-- `hate_speech_model_best.pth` – Najlepsza wersja modelu uzyskana podczas treningu.
-
 ## 📊 Wykorzystany zbiór danych
 
 Projekt korzysta z [BAN-PL: Polish Dataset of Banned Harmful and Offensive Content from Wykop.pl Web Service](https://github.com/ZILiAT-NASK/BAN-PL), który jest pierwszym publicznie dostępnym zbiorem danych zawierającym treści uznane za szkodliwe i obraźliwe przez profesjonalnych moderatorów serwisu Wykop.pl.  
@@ -37,6 +30,21 @@ Zbiór ten składa się z 48 000 próbek zanonimizowanych treści, z czego 24 00
    python model.py
    ```
    API będzie dostępne pod adresem `http://0.0.0.0:5001`.
+
+### 🐳 Uruchomienie w Dockerze
+
+Jeśli chcesz uruchomić projekt w kontenerze Docker, wykonaj poniższe kroki:
+
+1. **Zbuduj obraz Dockera**:
+   ```bash
+   docker build -t mop-app .
+   ```
+2. **Uruchom kontener**:
+   ```bash
+   docker run -d -p 5001:5001 mop-app
+   ```
+
+Teraz API jest dostępne pod adresem `http://localhost:5001`.
 
 ## 🌐 Korzystanie z API
 
