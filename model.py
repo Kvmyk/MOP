@@ -8,9 +8,7 @@ import string
 df = pd.read_csv("hate_speech_dataset.csv")
 
 import pandas as pd
-
-# Wczytaj istniejące dane z hate_speech_dataset.csv
-hate_speech_df = pd.read_csv("hate_speech_dataset.csv")
+import re
 
 # Wczytaj dane z BAN-PL.csv
 ban_pl_df = pd.read_csv("BAN-PL.csv")
@@ -28,7 +26,6 @@ ban_pl2_data.columns = ["text", "label"]
 
 def clean_text(text):
     """Funkcja do czyszczenia tekstu z niepotrzebnych znaków i formatowań"""
-    import re
     # Konwertuj wartości nan/None/float na pusty string
     if pd.isna(text) or not isinstance(text, str):
         return ""
@@ -50,20 +47,19 @@ ban_pl_data["text"] = ban_pl_data["text"].apply(clean_text)
 ban_pl2_data["text"] = ban_pl2_data["text"].apply(clean_text)
 
 # Upewnij się, że wszystkie wartości w kolumnie tekst są stringami
-hate_speech_df["text"] = hate_speech_df["text"].astype(str)
 ban_pl_data["text"] = ban_pl_data["text"].astype(str)
 ban_pl2_data["text"] = ban_pl2_data["text"].astype(str)
 
-# Połącz wszystkie dane
-combined_df = pd.concat([hate_speech_df, ban_pl_data, ban_pl2_data], ignore_index=True)
+# Połącz dane z obu plików BAN
+combined_df = pd.concat([ban_pl_data, ban_pl2_data], ignore_index=True)
 
 # Usuń puste wiersze (te, w których tekst jest pusty)
 combined_df = combined_df[combined_df["text"].str.strip() != ""]
 
-# Zapisz połączone dane do oryginalnego pliku
+# Zapisz połączone dane do pliku hate_speech_dataset.csv
 combined_df.to_csv("hate_speech_dataset.csv", index=False)
 
-print(f"Dodano dane z BAN-PL.csv i BAN-PL2.csv do hate_speech_dataset.csv.")
+print(f"Dane z BAN-PL.csv i BAN-PL2.csv zostały zapisane do hate_speech_dataset.csv")
 print(f"Łączna liczba rekordów: {len(combined_df)}")
 
 # Tokenizacja
