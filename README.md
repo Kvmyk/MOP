@@ -20,7 +20,7 @@
 ## 📊 Wykorzystany zbiór danych
 
 Projekt korzysta z [BAN-PL: Polish Dataset of Banned Harmful and Offensive Content from Wykop.pl Web Service](https://github.com/ZILiAT-NASK/BAN-PL), który jest pierwszym publicznie dostępnym zbiorem danych zawierającym treści uznane za szkodliwe i obraźliwe przez profesjonalnych moderatorów serwisu Wykop.pl.  
-Zbiór ten składa się z 24 000 próbek zanonimizowanych treści, z czego 12 000 to treści szkodliwe, a 12 000 to treści neutralne.
+Zbiór ten składa się z 48 000 próbek zanonimizowanych treści, z czego 24 000 to treści szkodliwe, a 24 000 to treści neutralne.
 
 ## 🚀 Jak uruchomić projekt
 
