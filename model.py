@@ -13,15 +13,15 @@ hate_speech_df = pd.read_csv("hate_speech_dataset.csv")
 
 # Wczytaj dane z BAN-PL.csv
 ban_pl_df = pd.read_csv("BAN-PL.csv")
-# Wybierz tylko kolumny Text i Class
-ban_pl_data = ban_pl_df[["Text", "Class"]]
+# Wybierz tylko kolumny Text i Class i utwórz jawną kopię
+ban_pl_data = ban_pl_df[["Text", "Class"]].copy()
 # Zmień nazwy kolumn na odpowiadające hate_speech_dataset.csv
 ban_pl_data.columns = ["text", "label"]
 
 # Wczytaj dane z BAN-PL2.csv
 ban_pl2_df = pd.read_csv("BAN-PL2.csv")
-# Wybierz tylko kolumny Text i Class
-ban_pl2_data = ban_pl2_df[["Text", "Class"]]
+# Wybierz tylko kolumny Text i Class i utwórz jawną kopię
+ban_pl2_data = ban_pl2_df[["Text", "Class"]].copy()
 # Zmień nazwy kolumn na odpowiadające hate_speech_dataset.csv
 ban_pl2_data.columns = ["text", "label"]
 
