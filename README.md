@@ -85,4 +85,8 @@ MOP to narzędzie stworzone z myślą o wspomaganiu procesu moderacji treści w 
 
 ---
 
+## 📄 Licencja
+
+Projekt **MOP** jest objęty licencją **MIT**. Oznacza to, że możesz swobodnie używać, modyfikować i rozpowszechniać kod pod warunkiem zachowania informacji o prawach autorskich. Szczegółowe informacje znajdziesz w pliku [`LICENSE`](LICENSE).
+
 > **Uwaga**: Projekt korzysta z danych zanonimizowanych i jest przeznaczony wyłącznie do celów badawczych.
