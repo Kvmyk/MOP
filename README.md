@@ -1,3 +1,4 @@
+![MOP](https://github.com/user-attachments/assets/e23c199e-a704-4a95-8412-cc0fc8e945fb)
 # Monitorowanie Obraźliwych Przekazów (MOP) 🚨🛡️
 
 **Monitorowanie Obraźliwych Przekazów (MOP)** to projekt mający na celu automatyczne wykrywanie i klasyfikację obraźliwych treści w języku polskim. Wykorzystuje on model oparty na sieciach neuronowych do analizy tekstu i identyfikacji potencjalnie szkodliwych komunikatów.
